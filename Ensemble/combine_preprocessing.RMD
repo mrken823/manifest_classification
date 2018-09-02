@@ -1,0 +1,74 @@
+---
+title: "CNN_doc2vec_word2vec_lda_lm_Aug2018"
+---
+
+```{r}
+library(readr)
+library(feather)
+library(caret)
+library(parallel)
+
+allInspect <- readRDS("~/project/txtm_news/Unclassified/Trade/Shipping Stat Commodity Coding/Neural Network/CNN/CNN_doc2vec_word2vec_lda_June2018/Results Dianogstic/allInspect.RDS")
+allInspect_order <- order(allInspect$DBFRowNum)
+allInspect <- allInspect[allInspect_order,]
+
+# int to label
+itol <- read_feather('~/project/txtm_news/Unclassified/Trade/Shipping Stat Commodity Coding/Neural Network/CNN/ULMFiT_July2018/52SubCodes.feather')
+itol <- as.character(itol$lbl)
+
+# Reading and sorting the previously generated prediction probability vectors
+sam_p <- readRDS("~/project/txtm_news/Unclassified/Trade/Shipping Stat Commodity Coding/Neural Network/CNN/CNN_doc2vec_word2vec_lda_June2018/Results Dianogstic/allPredProbY.RDS")
+DBFRowNum_sam <- readRDS("~/project/txtm_news/Unclassified/Trade/Shipping Stat Commodity Coding/Neural Network/CNN/CNN_doc2vec_word2vec_lda_June2018/Results Dianogstic/DBFRowNum_allPredProbY.RDS")
+DBFRowNum_sam <- as.character(DBFRowNum_sam$allid)
+sam_order <- order(DBFRowNum_sam)
+
+# trial3_cont is better than trial_cont2
+ken_p <- read_feather('~/project/txtm_news/Unclassified/Trade/Shipping Stat Commodity Coding/Neural Network/CNN/ULMFiT_July2018/Trial3/Results/all_prob_trial3_cont.feather')
+ken_p <- as.matrix(ken_p)
+DBFRowNum_ken <- read_feather('~/project/txtm_news/Unclassified/Trade/Shipping Stat Commodity Coding/Neural Network/CNN/ULMFiT_July2018/DBFRowNum_CC9c.feather')
+DBFRowNum_ken <- as.character(DBFRowNum_ken$DBFRowNum_ken)
+ken_order <- order(DBFRowNum_ken)
+
+# Sorting by DBFRowNum and keep the overlapping obs.
+sam_p <- sam_p[sam_order,]
+ken_p <- ken_p[ken_order,]
+bothid <- DBFRowNum_ken[ken_order] %in% DBFRowNum_sam
+ken_p <- ken_p[bothid,]
+
+# Using simple sum of two vectors to generate a new score vector for each obs.
+multiplier <- 1.425 #1.425 seems to be the optimal ratio
+com_p <- as.data.frame(sam_p + multiplier*ken_p)
+colnames(com_p) <- sort(unique(allInspect$Actual))
+
+# Finding out the argument with max. probability
+pred <- apply(com_p, 1, which.max)
+predictions <- itol[pred]
+
+print(paste('multiplier:', multiplier, ',overall accuracy:', sum(predictions==allInspect$Actual)/nrow(allInspect)))
+
+# Constructing the confusion matrix
+mat <- caret::confusionMatrix(as.factor(pred), as.factor(allInspect$Actual))
+# Count weight
+cnt_wgt <- table(allInspect$Actual)/nrow(allInspect)
+# Micro weighted F1 scores
+wF1 <- cnt_wgt * as.data.frame(mat$byClass)$F1
+sum(wF1)
+```
+
+```{r}
+write_feather(as.data.frame(allInspect[,'Actual']), "lbl_all.feather")
+write_feather(as.data.frame(cbind(sam_p, ken_p)), 'com_p.feather')
+
+inGP <- createFolds(allInspect$Actual, k = 6, list = FALSE, returnTrain = FALSE)
+trainFilter <- inGP %in% c(2, 3, 4)
+valFilter <- inGP %in% c(1, 5)
+testFilter <- inGP %in% c(6)
+
+write_feather(as.data.frame(allInspect$Actual[trainFilter]), "lbl_trn.feather")
+write_feather(as.data.frame(allInspect$Actual[valFilter]), "lbl_val.feather")
+write_feather(as.data.frame(allInspect$Actual[testFilter]), "lbl_test.feather")
+
+write_feather(as.data.frame(com_p[trainFilter,]), "vec_trn.feather")
+write_feather(as.data.frame(com_p[valFilter,]), "vec_val.feather")
+write_feather(as.data.frame(com_p[testFilter,]), "vec_test.feather")
+```

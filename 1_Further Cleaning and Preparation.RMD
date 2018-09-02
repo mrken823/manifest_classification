@@ -1,0 +1,313 @@
+---
+title: 'Further cleaning the data aggressively after inspecting previous ETMSvocab'
+output: html_document
+---
+
+Prepare for parallel cleaning process, parSapply(cl, x, fun) is recommended
+```{r}
+library(parallel)
+cl <- makeCluster(16)
+library(readr)
+library(stringr)
+library(tm)
+library(feather)
+library(text2vec)
+ETMSdir <- "~/project/txtm_news/Unclassified/Trade/Shipping Stat Commodity Coding"
+setwd("~/project/txtm_news/Unclassified/Trade/Shipping Stat Commodity Coding/Neural Network/ULMFiT_July2018/Data")
+```
+
+Template
+```{r}
+FUNCTION_NAME <- function(x){
+  PATTERN <- unlist(stringr::str_extract_all(x, ""))
+  N <- lCC9cth(PATTERN)
+  if (N == 1){
+    x <- gsub(PATTERN, "", x)
+  }
+  else if (N > 1){
+    for(i in 1:N){
+      x <- gsub(PATTERN[i], "", x)
+    }
+  }
+  return(x)
+}
+
+t0 <- Sys.time()
+dummy <- parSapply(cl, dummy, FUNCTION_NAME)
+print(paste("Time spent:", Sys.time()-t0))
+rm(t0)
+```
+
+Remove Months
+```{r}
+rmMonth <- function(x){
+  # Month alone and Month w/ prefix
+  PATTERN <- unlist(stringr::str_extract_all(x, "(\\d+|\\b)(january|february|march|april|june|july|august|september|october|november|december|jan|feb|mar|apr|may|jun|jul|aug|sep|sept|oct|nov|dec)(\\d+|\\b)"))
+  N <- lCC9cth(PATTERN)
+  if (N == 1){
+    x <- gsub(PATTERN, "", x)
+  }
+  else if (N > 1){
+    for(i in 1:N){
+      x <- gsub(PATTERN[i], "", x)
+    }
+  }
+  return(x)
+}
+rmMonth("the da73 i5 31 feb july september2017 sept17 and 31aug 30august 2018 jan2010")
+# dat <- parSapply(cl, dat, rmuninfo)
+```
+
+```{r}
+rmFrom <- function(x){
+  # (the|china|shenzhen|taichung|penang|cat|hakata|tokyo|guangzhou|kobe|yantian|shanghai|kaosiung|dongguan|yokohama)
+  PATTERN <- unlist(stringr::str_extract_all(x, "(from)\\w+"))
+  N <- lCC9cth(PATTERN)
+  if (N == 1){
+    x <- gsub(PATTERN, "", x)
+  }
+  else if (N > 1){
+    for(i in 1:N){
+      x <- gsub(PATTERN[i], "", x)
+    }
+  }
+  return(x)
+}
+
+rmFrom("the cargo is fromchina")
+```
+
+Check for spelling after the above processes (some US -> UK)
+Some will be obsolete after a better dictionary for spell checking
+```{r}
+corSpell <- function(x){
+  PATTERN <- unlist(stringr::str_extract_all(x, "aluminum|sulfur|potasium|frieght|telecomu|flavor|color|zation|((equip)(a|e|m)[a-z]+)|(\\b(access|assess)[a-z]+)|((responsi)[a-z]+)|((licen)[a-z]+)|ized"))
+    N <- lCC9cth(PATTERN)
+  if (N == 1){
+    x <- gsub("aluminum", "aluminium", x, perl=T)
+    x <- gsub("sulfur", "sulphur", x)
+    x <- gsub("potasium", "potassium", x)
+    x <- gsub("frieght", "freight", x)
+    x <- gsub("telecomu", "telecommu", x)
+    x <- gsub("flavor", "flavour", x)
+    x <- gsub("color", "colour", x)
+    x <- gsub("zation", "sation", x)
+    x <- gsub("((equip)(a|e|m)[a-z]+)", "equipment", x)
+    x <- gsub("\\b(access|assess)[a-z]+", "accessories", x)
+    x <- gsub("(responsi)[a-z]+", "responsibility", x)
+    x <- gsub("(licen)[a-z]+", "licence", x)
+    x <- gsub("\\b(size)", "Size", x)
+    x <- gsub("ized", "ised", x)
+    x <- gsub("Size", "size", x)
+      }
+  else if (N > 1){
+    for(i in 1:N){
+    x <- gsub("aluminum", "aluminium", x)
+    x <- gsub("sulfur", "sulphur", x)
+    x <- gsub("potasium", "potassium", x)
+    x <- gsub("frieght", "freight", x)
+    x <- gsub("telecomu", "telecommu", x)
+    x <- gsub("flavor", "flavour", x)
+    x <- gsub("color", "colour", x)
+    x <- gsub("zation", "sation", x)
+    x <- gsub("((equip)(a|e|m)[a-z]+)", "equipment", x)
+    x <- gsub("\\b(access|assess)[a-z]+", "accessories", x)
+    x <- gsub("(responsi)[a-z]+", "responsibility", x)
+    x <- gsub("(licen)[a-z]+", "licence", x)
+    x <- gsub("\\b(size)", "Size", x)
+    x <- gsub("ized", "ised", x)
+    x <- gsub("Size", "size", x)
+    }
+  }
+  return(x)
+}
+```
+
+Clean common terms with unwanted suffix such as "cotton30" -> "cotton"
+```{r}
+cleanSuff <- function(x){
+  cotton <- unlist(stringr::str_extract_all(x, "(cotton)\\d+"))
+  N <- lCC9cth(cotton)
+  if (N == 1){
+      x <- gsub(cotton, 'cotton', x, fixed=TRUE)
+  }
+  if (N > 1){
+    for (i in 1:N){
+      x <- gsub(cotton[i], 'cotton', x, fixed=TRUE)
+    }
+  }
+  
+  lbs <- unlist(stringr::str_extract_all(x, "(lbs)\\[a-z]+"))
+  N <- lCC9cth(lbs)
+  if (N == 1){
+      x <- gsub(lbs, 'lbs', x, fixed=TRUE)
+  }
+  if (N > 1){
+    for (i in 1:N){
+      x <- gsub(lbs[i], 'lbs', x, fixed=TRUE)
+    }
+  }
+  
+  polyester <- unlist(stringr::str_extract_all(x, "(polyester)\\d+"))
+  N <- lCC9cth(polyester)
+  if (N == 1){
+      x <- gsub(polyester, 'polyester', x, fixed=TRUE)
+  }
+  if (N > 1){
+    for (i in 1:N){
+      x <- gsub(polyester[i], 'polyester', x, fixed=TRUE)
+    }
+  }
+  
+  kgs <- unlist(stringr::str_extract_all(x, "(kgs)\\d+"))
+  N <- lCC9cth(kgs)
+  if (N == 1){
+      x <- gsub(kgs, 'kgs', x, fixed=TRUE)
+  }
+  if (N > 1){
+    for (i in 1:N){
+      x <- gsub(kgs[i], 'kgs', x, fixed=TRUE)
+    }
+  }  
+  
+  return(x)
+}
+```
+
+Remove unwanted terms with numeric suffix (maybe too aggressive)
+```{r}
+rmsuffixnum <- function(x){
+  cotton <- unlist(stringr::str_extract_all(x, "(cotton)\\d+"))
+  N <- lCC9cth(cotton)
+  if (N == 1){
+      x <- gsub(cotton, 'cotton', x, fixed=TRUE)
+  }
+  if (N > 1){
+    for (i in 1:N){
+      x <- gsub(cotton[i], 'cotton', x, fixed=TRUE)
+    }
+  }
+
+  
+  # extract terms with pattern xxx999
+  PATTERN <- unlist(stringr::str_extract_all(x, "[a-z]+\\d+"))
+  # keep those nice (xx)code______
+  CODE <- unlist(stringr::str_extract_all(PATTERN, "[a-z]*(code)\\d+"))
+  PATTERN <- PATTERN[!PATTERN %in% CODE]
+  N <- lCC9cth(PATTERN)
+  if (N == 1){
+    x <- gsub(PATTERN, "", x)
+  }
+  else if (N > 1){
+    for(i in 1:N){
+      x <- gsub(PATTERN[i], "", x)
+    }
+  }
+  return(x)
+}  
+
+wordnum <- NA
+wordnum <- (unlist(stringr::str_extract_all(vocab$term, "[a-z]+[a-z]\\d+")))
+
+rmsuffixnum("cotton20")
+```
+
+Remove terms with just numbers
+```{r}
+rmJustnum <- function(x){
+  return(gsub("\\b\\d+\\b", "", x))
+}
+```
+
+Remove websites
+```{r}
+rmWeb <- function(x){
+  PATTERN <- unlist(stringr::str_extract_all(x, "(www)[a-z]+"))
+  N <- lCC9cth(PATTERN)
+  if (N == 1){
+    x <- gsub(PATTERN, "", x)
+  }
+  else if (N > 1){
+    for(i in 1:N){
+      x <- gsub(PATTERN[i], "", x)
+    }
+  }
+  return(x)
+}
+```
+
+
+```{r}
+rmENG <- function(x){
+  return(gsub('[a-z]', '', x))
+}
+```
+
+Remove English stopwords
+```{r}
+rmSW <- function(x){
+  return(tm::removeWords(x, tm::stopwords("en")))
+}
+```
+
+Tokenise CN char and EN word
+```{r}
+tok_CN_EN <- function(x){
+  return(paste(gsub(' ', '', unlist(stringi::stri_split_boundaries(x))), collapse=' '))
+}
+```
+
+Add _bos_ at the beginning of each description (for language model)
+```{r}
+add_bos <- function(x){
+  return(paste("_bos_", x))
+}
+```
+
+```{r}
+one_bos <- function(x){
+  return(gsub("(_bos_)( _bos_ )+", "_bos_ ", x))
+}
+```
+
+```{r}
+rm_bos <- function(x){
+  return(gsub("_bos_ ", "", x))
+}
+```
+
+Apply the aggressive cleaning functions then remove unwanted white spaces and duplicated records
+```{r}
+CC9c <- read_feather("ComCode9coded.feather")
+
+t0 <- Sys.time()
+# CC9c$Des <- parSapply(cl, CC9c$Des, rmMonth)
+# CC9c$Des <- parSapply(cl, CC9c$Des, rmFrom)
+# rmsuffixnum is removes way too much
+# CC9c$Des <- parSapply(cl, CC9c$Des, rmsuffixnum)
+# CC9c$Des <- parSapply(cl, CC9c$Des, rmJustnum)
+# rmSW may be too aggressive for LM approach
+# CC9c$Des <- parSapply(cl, CC9c$Des, rmSW)
+# CC9c$Des <- parSapply(cl, CC9c$Des, rmAlpha)
+CC9c$Des <- parSapply(cl, CC9c$Des, cleanSuff)
+CC9c$Des <- parSapply(cl, CC9c$Des, corSpell)
+CC9c$Des <- parSapply(cl, CC9c$Des, tok_CN_EN)
+CC9c$Des <- parSapply(cl, CC9c$Des, stripWhitespace)
+#CC9c <- unique.data.frame(CC9c)
+CC9c$Des <- parSapply(cl, CC9c$Des, add_bos)
+print(paste("Time spent:", Sys.time()-t0))
+View(as.data.frame(CC9c$Des))
+
+EN <- CC9c[CC9c$Lang=="E",]
+CN <- CC9c[CC9c$Lang=="C",]
+
+# Removing all non-CN char for vocab_CN
+onlyCN <- parSapply(cl, CN$Des, tok_CN_EN)
+onlyCN <- parSapply(cl, onlyCN, rmENG)
+onlyCN <- parSapply(cl, onlyCN, rmJustnum)
+onlyCN <- as.data.frame(onlyCN$Des)
+```
+
+```{r}
+stopCluster(cl)
+```

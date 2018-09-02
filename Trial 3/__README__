@@ -1,0 +1,3 @@
+The codes in notebooks are tested in a CPU server then transferred to another colleague who has access to a GPU (Nvidia Tesla K40c)
+
+The output files are then transferred back to our CPU server for further analysis

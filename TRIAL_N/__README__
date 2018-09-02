@@ -1,0 +1,20 @@
+---This is the template for ULMFiT---
+Step 1: PREPROCESSING.RMD
+Step 2: LM_TRIAL_N.IPYNB
+Step 3: CLAS_TRIAL_N.IPYNB
+Step 4: RESULTS_TRIAL_N.IPYNB
+Step 5: RESULT_DIAGNOSIS.RMD
+
+Tokenisation, text2seq, padding and data partitioning are done in R (PREPROCESSING.RMD)
+
+52SubCodes.feather contains indices of each SubCodes
+
+VOCAB_TRIAL_N.feather contains indices of each vocab
+
+..._LM_TRIAL_N.feather are descriptions with indices instead of words, which will later be concatenated and used to fine tune the Wikitext103 language model.
+
+SEQ_..._TRIAL_N.feather are padded and serves as explanatory variable of the classifier
+
+LBL_..._TRIAL_N.feather are the SubCodes corresonding to SEQ_..._TRIAL_N.feather
+
+LOSS_WGT.feather contains 52 double variables (mean # obs./ actual # of obs. of each class)

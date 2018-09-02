@@ -1,0 +1,89 @@
+---
+title: "ULMFiT Results Diagnosis"
+---
+
+```{r}
+library(readr)
+library(caret)
+library(feather)
+library(matrixStats)
+library(stringr)
+
+CC9c <- read_feather("CC9c_Aug24.feather")
+prob <- read_feather("all_prob_trial3_cont2.feather")
+top3 <- read_feather("top3_trial3_cont2.feather")
+
+# Temporarily add '340' to predicted outcome to make sure there exist 52 levels (trial3 cont)
+#rbind(c('340', '340', '340'), top3)
+top3$`1st` <- as.factor(top3$`1st`)
+top3$`2nd` <- as.factor(top3$`2nd`)
+top3$`3rd` <- as.factor(top3$`3rd`)
+#top3 <- top3[2:nrow(top3),]
+
+# Extracting probability of the predicted class
+top3$maxp <- rowMaxs(as.matrix(prob))
+
+# Extracting doubtful classification with specified probability threshold
+lv <- 0.9999
+doubtid <- CC9c$SubCode != top3$`1st` & top3$maxp > lv 
+doubtdf <- data.frame(CC9c[doubtid,], top3[doubtid,])
+
+# Output doubtful classification
+#write_feather(doubtdf, "Doubtful_Classification_999.csv")
+
+# Histogram of probabilities (overall, correct, wrong)
+hist(top3$maxp, breaks = 50)
+hist(top3$maxp[CC9c$SubCode == top3$`1st`], breaks = 50)
+hist(top3$maxp[CC9c$SubCode != top3$`1st`], breaks = 50)
+
+# missed (not in top 3)
+missid <-
+  CC9c$SubCode != top3$`1st` &
+  CC9c$SubCode != top3$`2nd` & CC9c$SubCode != top3$`3rd`
+  miss <- cbind(CC9c[missid,], top3[missid,])
+
+# Confusion matrix
+mat <- confusionMatrix(top3$`1st`, CC9c$SubCode)
+
+# Inspecting a particular group
+id340 <- CC9c$SubCode=='340' | top3$`1st`=='340'
+View(data.frame(CC9c[id340,], top3[id340,]))
+
+actual340 <- CC9c$SubCode=='340'
+A340 <- data.frame(CC9c[actual340,], top3[actual340,])
+A340_miss <- A340[A340$X1st!='340' & A340$X2nd!='340' & A340$X3rd!='340',]
+View(A340)
+
+pred340 <- top3$`1st`=='340'
+P340 <- data.frame(CC9c[pred340,], top3[pred340,])
+View(P340)
+```
+
+```{r}
+CC2 <- readRDS()
+
+find <- function(x) return(tolower(CC2$Des[CC2$RefNo==x][1]))
+
+find9 <- function(x) return(tolower(CC9c$Des[CC9c$RefNo==x][1]))
+
+findCN <- function(x) return(tolower(CN$Des[CN$RefNo==x][1]))
+
+tmp <- str_extract_all(CC9c$Des, "\\b(cod)\\s(e)\\b")
+codeid <- NA
+for (i in 1:nrow(CC9c)){
+  codeid[i]<-length(tmp[[i]])!=0
+  }
+sum(codeid) #2,669 obs. with "cod e" problem
+
+tmp <- str_extract_all(tolower(CC2$Des), "\\b(t/c)\\b")
+tcid <- NA
+for (i in 1:nrow(CC2)){
+  tcid[i]<-length(tmp[[i]])!=0
+  }
+sum(tcid) #50,705 obs. with "_t/c" problem
+
+paste(unlist(str_split("ncmcode","")),collapse ="(\\s+)?")
+
+find9('C01589035')
+
+```

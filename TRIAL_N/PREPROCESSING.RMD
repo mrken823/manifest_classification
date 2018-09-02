@@ -1,0 +1,102 @@
+```{r}
+# Preparing data for Universal Language Model Fine-Tuning for Text Classification
+library(text2vec)
+library(caret)
+library(feather)
+library(keras)
+library(readr)
+set.seed(78910)
+
+CC9c <- read_feather("/app/project/txtm_news/Unclassified/Trade/Shipping Stat Commodity Coding/Summer Internship 2018/CC9c_Aug24.feather")
+
+correct <- read_csv("/app/project/txtm_news/Unclassified/Trade/Shipping Stat Commodity Coding/Raw Data/Doubtful Classification_Aug8/Classification_Combined.csv")
+```
+
+```{r}
+# 67,969 EN tokens at appeared in at least 10 doc
+vocab_EN10 <- create_vocabulary(itoken(EN$Des)) %>% prune_vocabulary(doc_proportion_max=0.1, doc_count_min=10L)
+
+# 2,217 CN character level tokens
+vocab_CN <- create_vocabulary(itoken(onlyCN$Des)) %>% prune_vocabulary(doc_proportion_max=0.1)
+
+# Combining EN10 and CN
+vocab <- rbind(vocab_EN10, vocab_CN)
+
+# Adding token for 'unknown', 'padding' and 'beginning of sentence' token
+Nv <- length(vocab$term)
+vocab[Nv+1,]$term <- "_unk_"
+vocab[Nv+1,]$term_count <- max(vocab$term_count) + 3
+vocab[Nv+2,]$term <- "_pad_"
+vocab[Nv+2,]$term_count <- max(vocab$term_count) + 2
+vocab[Nv+3,]$term <- "_bos_"
+vocab[Nv+3,]$term_count <- max(vocab$term_count) + 1
+
+# Sort vocab by term_count
+vocab <- vocab[order(vocab$term_count, decreasing = T),]
+vocab$id <- 0:(nrow(vocab)-1)
+write_feather(vocab, "VOCAB_TRIAL_N.feather")
+
+it_k <- text_tokenizer(num_words = nrow(vocab), split = " ", filters='', char_level = FALSE, lower=TRUE)
+word_index <- setNames(as.list(vocab$id), vocab$term)
+it_k$word_index <- word_index
+```
+
+```{r}
+# Corrected wrong labels
+CC9c$correct <- correct$Corrected[match(CC9c$RefNo, correct$RefNo)]
+CC9c$SubCode[!is.na(CC9c$correct)] <- CC9c$correct[!is.na(CC9c$correct)]
+```
+
+```{r}
+# train:valid = 9:1 for tuning the LM
+inLM <- createFolds(CC9c$SubCode, k = 10, list = F, returnTrain = F)
+
+# train:valid:test = 3:2:1 for training the classifier
+inGP <- createFolds(CC9c$SubCode, k = 6, list = FALSE, returnTrain = FALSE)
+trainid <- inGP %in% c(2, 3, 4)
+validid <- inGP %in% c(1, 5)
+testid <- inGP %in% c(6)
+
+CC9c$Group <- NA
+CC9c$Group[trainid] <- "train"
+CC9c$Group[validid] <- "valid"
+CC9c$Group[testid] <- "test"
+```
+
+```{r}
+# Saving response variable 
+write_feather(CC9c[, 'SubCode'], "LBL_ALL_TRIAL_N.feather")
+write_feather(as.data.frame(CC9c$SubCode[trainid]), "LBL_TRN_TRIAL_N.feather")
+write_feather(as.data.frame(CC9c$SubCode[validid]), "LBL_VAL_TRIAL_N.feather")
+write_feather(as.data.frame(CC9c$SubCode[testid]), "LBL_TEST_TRIAL_N.feather")
+
+# 1 is for "_pad_" in the vocab
+t2s <- texts_to_sequences(it_k, CC9c$Des)
+# reversing the elements ("office equipment" --> "equipment office")
+t2s_bwd <- parLapply(cl, t2s, rev)
+
+# t2s_padded <- keras::pad_sequences(t2s, padding="post", value=1)
+# max. 298 tokens after padding
+t2s_df <- as.data.frame(pad_sequences(t2s, padding="post", value=1))
+t2s_bwd_df <- as.data.frame(pad_sequences(t2s_bwd, padding="post", value=1))
+
+# 1427 empty observations after cleaning
+sum(t2s_df$V1==1)
+
+# padded sequences as explanatory variables
+write_feather(t2s_df, "SEQ_ALL_TRIAL_N.feather")
+write_feather(t2s_df[trainid,], "SEQ_TRN_TRIAL_N.feather")
+write_feather(t2s_df[validid,], "SEQ_VAL_TRIAL_N.feather")
+write_feather(t2s_df[testid,], "SEQ_TEST_TRIAL_N.feather")
+
+write_feather(t2s_bwd_df[trainid,], "SEQ_TRN_BWD_TRIAL_N.feather")
+write_feather(t2s_bwd_df[validid,], "SEQ_VAL_BWD_TRIAL_N.feather")
+write_feather(t2s_bwd_df[testid,], "SEQ_TEST_BWD_TRIAL_N.feather")
+
+# token indices to python for LM tuning
+write_feather(as.data.frame(unlist(t2s[inLM %in% c(1:9)])), "TRN_LM_TRIAL_N.feather")
+write_feather(as.data.frame(unlist(t2s[inLM %in% c(10)])), "VAL_LM_BWD_TRIAL_N.feather")
+
+write_feather(as.data.frame(unlist(t2s_bwd[inLM %in% c(2:10)])), "TRN_LM_TRIAL_N.feather")
+write_feather(as.data.frame(unlist(t2s_bwd[inLM %in% c(1)])), "VAL_LM_BWD_TRIAL_N.feather")
+```

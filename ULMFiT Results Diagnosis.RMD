@@ -1,0 +1,48 @@
+---
+title: "ULMFiT Results Diagnosis"
+---
+
+```{r}
+library(readr)
+library(caret)
+library(feather)
+library(matrixStats)
+
+CC9c <- read_feather("CC9c_Aug24.feather")
+prob <- read_feather("all_prob_trial3_cont2.feather")
+top3 <- read_feather("top3_trial3_cont2.feather")
+
+# Temporarily add '340' to predicted outcome to make sure there exist 52 levels (trial3 cont)
+#rbind(c('340', '340', '340'), top3)
+top3$`1st` <- as.factor(top3$`1st`)
+top3$`2nd` <- as.factor(top3$`2nd`)
+top3$`3rd` <- as.factor(top3$`3rd`)
+#top3 <- top3[2:nrow(top3),]
+
+# Extracting probability of the predicted class
+top3$maxp <- rowMaxs(as.matrix(prob))
+
+# Extracting doubtful classification with specified probability threshold
+lv <- 0.9999
+doubtid <- CC9c$SubCode != top3$`1st` & top3$maxp > lv 
+doubtdf <- data.frame(CC9c[doubtid,], top3[doubtid,])
+
+# Output doubtful classification
+#write_feather(doubtdf, "Doubtful_Classification_999.csv")
+
+# Histogram of probabilities (overall, correct, wrong)
+hist(top3$maxp, breaks = 50)
+hist(top3$maxp[CC9c$SubCode == top3$`1st`], breaks = 50)
+hist(top3$maxp[CC9c$SubCode != top3$`1st`], breaks = 50)
+
+# missed (not in top 3)
+missid <- CC9c$SubCode!=top3$`1st` & CC9c$SubCode!=top3$`2nd` & CC9c$SubCode!=top3$`3rd`
+miss <- cbind(CC9c[missid,], top3[missid,])
+
+# Confusion matrix
+mat <- confusionMatrix(top3$`1st`, CC9c$SubCode)
+# Proportion of each class in the dataset
+cnt_wgt <- table(CC9c$SubCode)/nrow(CC9c)
+# Micro weight F1 score to evaluate performance
+sum(as.data.frame(mat$byClass)$F1 * cnt_wgt)
+```

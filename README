@@ -1,0 +1,7 @@
+CC9c: "ComCode9coded", the dataframe with 2,180,315 obs. with following variables
+  Des: Goods description (char)
+  SubCode: Target variable (factor with 52 levels)
+  RefNo: Reference number for labelled obs. (char)
+  DBFRowNum: Similar to RefNo, one-one correspondence (char)
+  Lang: Language, either E for English only or C for containing Chinese character(s) (factor with 2 levels)
+
