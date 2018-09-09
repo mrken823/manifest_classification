@@ -1,3 +1,7 @@
+Data cleaning, preprocessing and partitioning mainly done in R with stringr, keras and caret library
+Language model fine-tuning, classifier training are done in Python using fastai library
+Result diagnostics are done in R
+
 CC9c: "ComCode9coded", the dataframe with 2,180,315 obs. with following variables
   Des: Goods description (char)
   SubCode: Target variable (factor with 52 levels)
@@ -5,3 +9,56 @@ CC9c: "ComCode9coded", the dataframe with 2,180,315 obs. with following variable
   DBFRowNum: Similar to RefNo, one-one correspondence (char)
   Lang: Language, either E for English only or C for containing Chinese character(s) (factor with 2 levels)
 
+SubCode meaning:
+000	主要作食用的動物及其製品
+040	穀類及其製品
+050	蔬果類
+089	罐裝食品
+099	其他食品及食物製品
+110	飲料
+120	煙草及煙草製品
+247	原木及木材；稍作加工的木材
+251	紙漿及廢紙
+260	紡織纖維及其廢料
+273	石料、沙及礫石
+280	金屬礦砂及金屬廢料
+291	黏土及高嶺土
+299	其他非食用原料，包括動植物原料
+320	煤、焦煤及煤球
+330	石油、石油產品及副產品
+340	天然氣及人造氣體
+410	動植物油、脂肪及蠟脂
+510	有機化學品
+520	無機化學品
+562	化學肥料
+580	人造樹脂、塑料、纖維素酯及纖維素醚
+599	其他化學製品及有關產品
+630	軟木及木製品 (傢具除外)
+640	紙張和紙製品
+659	紡織紗、紡織品及有關製成品
+661	水泥及水泥熟料
+662	磚,瓷磚及耐火建築材料
+663	水泥和混凝土結構,建築用砌塊及礦物製品
+664	玻璃及玻璃製品
+666	陶瓷器,瓷器及陶瓷家庭用品
+670	鋼鐵
+680	有色金屬
+691	工具，餐具，金屬家庭用品及製造
+697	塑膠製品
+698	其他以原料分類之製成品
+709	機械，不包括辦公室機器、資料處理機、電訊、影像及聲音器具
+750	辦公室機器及資料處理機
+760	電訊、影像及聲音器具
+777	吉櫃, 空貨櫃
+799	交通工具
+819	衛生、水管、熱力及照明設備
+820	傢具及有關附件
+830	旅行用品、手袋及同類產品
+849	衣物及衣服配件
+850	鞋類
+879	專業 、科學及控制儀器和設備
+889	攝影器具、設備及用品，及光學貨品；錶及鐘
+894	玩具
+899	其他製成品
+901	郵包；非食用動物；彈藥及非流通貨幣
+999	未能個別分類的貨物
